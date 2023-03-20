@@ -45,16 +45,61 @@ for (i in 1:(N*K)){
 # two-layered neural network, using ReLU as activation function and as loss function softmax
 # %*% dot product, * element wise product
 
-neuralnetwork <- function(X, Y, step_size = 0.5, reg = 0.001, h = 10, niteration){
-  #get dimensions of the input
-  N <- nrow(X) #number of examples
-  K <- ncol(Y) #number of classes
-  D <- ncol(X) #dimensionality of examples
-  
-  #initialize parameters randomly
-  W <- 0.01 * matrix(rnorm(D*h), nrow = D)
-  b <- matrix(0, nrow = 1, ncol = h)
-  W2 <- 0.01 * matrix(rnorm(h*K), nrow = h)
-  b <- matrix(0, nrow = 1, ncol = K)
-  
+#relu activation function
+Activation_ReLU <- function(inputs){
+  return(pmax(inputs,0))
 }
+
+#softmax activation function
+Activation_Softmax <- function(inputs){
+  exp_values <- exp(matrix(mapply("-", inputs, apply(inputs, 1, max)), ncol = ncol(inputs)))
+  probabilities <- matrix(mapply("/", exp_values, rowSums(exp_values)), ncol = ncol(exp_values)) 
+  return(probabilities)
+}
+
+#define class or dense layer
+setClass("DenseLayer", slots = c(n_inputs = 'numeric', n_neurons = 'numeric'))
+
+#set init (constructor)
+setGeneric('init', function(layer) standardGeneric('init'))
+
+#set method for init
+setMethod('init', 'DenseLayer',
+          function(layer) {
+            n_weights <- layer@n_inputs * layer@n_neurons
+            weights <- matrix(rnorm(n_weights),
+                              nrow = layer@n_inputs,
+                              ncol = layer@n_neurons
+            )
+            attr(layer, 'weights') <- 0.10 * weights
+            attr(layer, 'biases') <- rep(0, layer@n_neurons)
+            layer
+          })
+
+#set method for forward function
+setGeneric('forward', function(layer, inputs) standardGeneric('forward'))
+setMethod('forward', 'DenseLayer',
+          function(layer, inputs){
+            attr(layer, 'outputs') <- inputs %*% layer@weights + layer@biases
+            layer
+          })
+
+#create wrapper for initializing layer object
+LayerDense <- function(n_inputs, n_neurons){
+  init(new('DenseLayer', n_inputs=n_inputs, n_neurons=n_neurons))
+}
+
+#make 'prediction' (no feedback yet, just testing softmax function)
+#create first layer
+#input is 2, since we have 2 variables (x,y)
+layer1 <- LayerDense(n_inputs = 2, n_neurons = 3)
+layer1 <- forward(layer1, as.matrix(X))
+layer1@outputs
+
+#input is 3, since output of layer 1 is 3 neurons. n_neurons is 3 since we have three classes.
+#ReLU activation is initialized here
+layer2 <- LayerDense(n_inputs = 3, n_neurons = 3)
+layer2 <- forward(layer2, Activation_ReLU(layer1@outputs))
+
+#view first 5 output with softmax activation
+head(Activation_Softmax(layer2@outputs))
